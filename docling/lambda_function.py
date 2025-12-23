@@ -1,14 +1,37 @@
 import json
+import os
 import requests
 import traceback
 from docling_parser import DoclingParser, logger
+
+# Set all temporary directories to /tmp (Lambda only writable directory)
+os.environ["HOME"] = "/tmp"
+os.environ["TMPDIR"] = "/tmp"
+os.environ["TMP"] = "/tmp"
+os.environ["TEMP"] = "/tmp"
+os.environ["TORCH_HOME"] = "/tmp/torch"
+os.environ["HF_HOME"] = "/tmp/huggingface"
+os.environ["EASYOCR_MODULE_PATH"] = "/tmp"
+os.environ["MODULE_PATH"] = "/tmp"
+os.environ["XDG_CACHE_HOME"] = "/tmp/.cache"
+os.environ["XDG_CONFIG_HOME"] = "/tmp/.config"
+os.environ["XDG_DATA_HOME"] = "/tmp/.local/share"
 
 
 def lambda_handler(event: dict, context):
     logger.info(f"Received event: {json.dumps(event)}")
     try:
+        # Parse event - support both API Gateway (body) and direct invocation
+        event_data = event
+        if 'body' in event:
+            # API Gateway format - parse body JSON string
+            try:
+                event_data = json.loads(event['body'])
+            except (json.JSONDecodeError, TypeError):
+                event_data = event
+        
         # Validate presigned URL
-        presigned_url = event.get('presignedUrl', '')
+        presigned_url = event_data.get('presignedUrl', '')
         if not presigned_url:
             logger.error("Missing presigned URL in event")
             return {
@@ -28,8 +51,8 @@ def lambda_handler(event: dict, context):
         logger.info(f"Successfully downloaded content, size: {len(file_bytes)} bytes")
 
         # Process parameters
-        is_image_present = event.get('isImagePresent', False)
-        is_md_response = event.get('isMdResponse', True)
+        is_image_present = event_data.get('isImagePresent', False)
+        is_md_response = event_data.get('isMdResponse', True)
 
         # Initialize parser with bytes content directly
         parser = DoclingParser(
