@@ -1,3 +1,22 @@
+# CRITICAL: Set environment variables BEFORE importing any libraries
+# This prevents libraries from writing to /home/sbx_user1051 (read-only in Lambda)
+# These can be overridden via Lambda Console -> Configuration -> Environment variables
+import os
+
+_tmp = os.environ.get("LAMBDA_TMP_DIR", "/tmp")
+os.environ.setdefault("HOME", _tmp)
+os.environ.setdefault("TMPDIR", _tmp)
+os.environ.setdefault("TMP", _tmp)
+os.environ.setdefault("TEMP", _tmp)
+os.environ.setdefault("TORCH_HOME", f"{_tmp}/torch")
+os.environ.setdefault("HF_HOME", f"{_tmp}/huggingface")
+os.environ.setdefault("EASYOCR_MODULE_PATH", _tmp)
+os.environ.setdefault("MODULE_PATH", _tmp)
+os.environ.setdefault("XDG_CACHE_HOME", f"{_tmp}/.cache")
+os.environ.setdefault("XDG_CONFIG_HOME", f"{_tmp}/.config")
+os.environ.setdefault("XDG_DATA_HOME", f"{_tmp}/.local/share")
+
+# Now safe to import other libraries
 import base64
 import logging
 import string
@@ -20,22 +39,6 @@ from docling.document_converter import DocumentConverter, PdfFormatOption, WordF
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-
-import os
-# Set all temporary directories to /tmp (Lambda only writable directory)
-# These are set here as fallback, but should also be set in lambda_function.py
-if "HOME" not in os.environ:
-    os.environ["HOME"] = "/tmp"
-os.environ["TMPDIR"] = "/tmp"
-os.environ["TMP"] = "/tmp"
-os.environ["TEMP"] = "/tmp"
-os.environ["TORCH_HOME"] = "/tmp/torch"
-os.environ["HF_HOME"] = "/tmp/huggingface"
-os.environ["EASYOCR_MODULE_PATH"] = "/tmp"
-os.environ["MODULE_PATH"] = "/tmp"
-os.environ["XDG_CACHE_HOME"] = "/tmp/.cache"
-os.environ["XDG_CONFIG_HOME"] = "/tmp/.config"
-os.environ["XDG_DATA_HOME"] = "/tmp/.local/share"
 
 
 

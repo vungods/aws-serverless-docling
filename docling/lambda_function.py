@@ -1,21 +1,11 @@
+# CRITICAL: Environment variables are set in docling_parser.py BEFORE any library imports
+# For Lambda, also configure these in: Lambda Console -> Configuration -> Environment variables
+# This ensures they're available before the container even starts
+
 import json
-import os
 import requests
 import traceback
 from docling_parser import DoclingParser, logger
-
-# Set all temporary directories to /tmp (Lambda only writable directory)
-os.environ["HOME"] = "/tmp"
-os.environ["TMPDIR"] = "/tmp"
-os.environ["TMP"] = "/tmp"
-os.environ["TEMP"] = "/tmp"
-os.environ["TORCH_HOME"] = "/tmp/torch"
-os.environ["HF_HOME"] = "/tmp/huggingface"
-os.environ["EASYOCR_MODULE_PATH"] = "/tmp"
-os.environ["MODULE_PATH"] = "/tmp"
-os.environ["XDG_CACHE_HOME"] = "/tmp/.cache"
-os.environ["XDG_CONFIG_HOME"] = "/tmp/.config"
-os.environ["XDG_DATA_HOME"] = "/tmp/.local/share"
 
 
 def lambda_handler(event: dict, context):
