@@ -1,2 +1,3 @@
 requests
 docling
+boto3
