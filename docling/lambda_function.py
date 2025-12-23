@@ -80,12 +80,17 @@ def lambda_handler(event: dict, context):
         # Log success and content length
         logger.info(f"Successfully downloaded content, size: {len(file_bytes)} bytes")
 
-        # Process parameters
-        is_image_present = event_data.get('isImagePresent', False)
+        # Processing parameters
+        # Can be set via event params or Lambda environment variables
         is_md_response = event_data.get('isMdResponse', True)
+        enable_table_extraction = event_data.get('enableTableExtraction', 
+            os.environ.get('ENABLE_TABLE_EXTRACTION', 'true').lower() == 'true')
+        enable_ocr = event_data.get('enableOcr', 
+            os.environ.get('ENABLE_OCR', 'false').lower() == 'true')
+        # Legacy support
+        is_image_present = event_data.get('isImagePresent', False)
         
         # S3 output configuration (optional)
-        # Can be set via event params or Lambda environment variables
         output_bucket = event_data.get('outputBucket') or os.environ.get('OUTPUT_BUCKET')
         output_prefix = event_data.get('outputPrefix') or os.environ.get('OUTPUT_PREFIX', 'docling-output')
         generate_url = event_data.get('generatePresignedUrl', True)
@@ -95,7 +100,9 @@ def lambda_handler(event: dict, context):
         parser = DoclingParser(
             bytes_content=file_bytes,
             is_image_present=is_image_present,
-            is_md_response=is_md_response
+            is_md_response=is_md_response,
+            enable_table_extraction=enable_table_extraction,
+            enable_ocr=enable_ocr
         )
 
         logger.info(f"Detected document type: {parser.doc_type}")
@@ -108,6 +115,11 @@ def lambda_handler(event: dict, context):
             'success': True,
             'documentType': parser.doc_type,
             'contentLength': len(result),
+            'options': {
+                'tableExtraction': enable_table_extraction,
+                'ocr': enable_ocr,
+                'markdownFormat': is_md_response
+            }
         }
         
         # Upload to S3 if bucket is configured

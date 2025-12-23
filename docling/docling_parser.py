@@ -90,9 +90,25 @@ class DocumentDetector:
 
 
 class DoclingParser(DocumentDetector):
-    def __init__(self, base64_content: str = None, bytes_content: bytes = None, is_image_present: bool = False,
-                 is_md_response: bool = False):
-        """Initialize parser with base64 encoded content or raw bytes"""
+    def __init__(
+        self, 
+        base64_content: str = None, 
+        bytes_content: bytes = None, 
+        is_image_present: bool = False,
+        is_md_response: bool = True,
+        enable_table_extraction: bool = True,
+        enable_ocr: bool = False
+    ):
+        """Initialize parser with base64 encoded content or raw bytes
+        
+        Args:
+            base64_content: Base64 encoded document content
+            bytes_content: Raw bytes of the document
+            is_image_present: Enable OCR for image-based PDFs (legacy param, use enable_ocr)
+            is_md_response: Return markdown format (True) or plain text (False)
+            enable_table_extraction: Extract tables with structure (default: True)
+            enable_ocr: Enable OCR for scanned documents (default: False)
+        """
         if base64_content is not None:
             self.bytes_stream = base64.standard_b64decode(base64_content)
         elif bytes_content is not None:
@@ -107,63 +123,52 @@ class DoclingParser(DocumentDetector):
         self.doc_type = self._detect_document_type()
         self.is_image_present = is_image_present
         self.is_md_response = is_md_response
-
+        self.enable_table_extraction = enable_table_extraction
+        self.enable_ocr = enable_ocr or is_image_present  # Support legacy param
 
     def _configure_converter(self):
-        """Configure optimized converter for speed"""
-        match self.is_image_present:
-            case False:
-                if self.doc_type==".pdf":
-                    pipeline_options = PdfPipelineOptions()
-                    pipeline_options.do_ocr = False
-                    pipeline_options.do_table_structure = False
-                    pipeline_options.table_structure_options.do_cell_matching = False
-                    accelerator_options = AcceleratorOptions()
-                    accelerator_options.device = AcceleratorDevice.CPU
-                    accelerator_options.num_threads = 8
-                    doc_converter = DocumentConverter(
-                        format_options={
-                            InputFormat.PDF: PdfFormatOption(
-                                pipeline_options=pipeline_options,
-                                backend=DoclingParseV2DocumentBackend,
-                                accelerator_options=accelerator_options,
-                            )
-                        }
+        """Configure converter based on options"""
+        if self.doc_type == ".pdf":
+            pipeline_options = PdfPipelineOptions()
+            
+            # OCR settings
+            pipeline_options.do_ocr = self.enable_ocr
+            if self.enable_ocr:
+                pipeline_options.force_full_page_ocr = True
+            
+            # Table extraction settings
+            pipeline_options.do_table_structure = self.enable_table_extraction
+            if self.enable_table_extraction:
+                pipeline_options.table_structure_options.do_cell_matching = True
+            
+            accelerator_options = AcceleratorOptions()
+            accelerator_options.device = AcceleratorDevice.CPU
+            accelerator_options.num_threads = 8
+            
+            doc_converter = DocumentConverter(
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(
+                        pipeline_options=pipeline_options,
+                        backend=DoclingParseV2DocumentBackend,
+                        accelerator_options=accelerator_options,
                     )
-                    return doc_converter
-                elif self.doc_type==".docx":
-                    doc_converter = DocumentConverter(
-                        format_options={
-                            InputFormat.DOCX: WordFormatOption(
-                                backend=MsWordDocumentBackend,
-
-                                    )
-                                }
-                            )
-                    return doc_converter
-                else:
-                    doc_converter = DocumentConverter()
-                    return doc_converter
-
-            case True:
-                if self.doc_type==".pdf":
-                    pipeline_options = PdfPipelineOptions(do_ocr=True,
-                                                          force_full_page_ocr=True,
-                                                          )
-                    accelerator_options = AcceleratorOptions(num_threads=8,
-                                                             device=AcceleratorDevice.CPU)
-                    doc_converter = DocumentConverter(
-                        format_options={
-                            InputFormat.PDF: PdfFormatOption(
-                                pipeline_options=pipeline_options,
-                                accelerator_options=accelerator_options
-                            )
-                        }
+                }
+            )
+            return doc_converter
+            
+        elif self.doc_type == ".docx":
+            doc_converter = DocumentConverter(
+                format_options={
+                    InputFormat.DOCX: WordFormatOption(
+                        backend=MsWordDocumentBackend,
                     )
-                    return doc_converter
-                else:
-                    doc_converter = DocumentConverter( )
-                    return doc_converter
+                }
+            )
+            return doc_converter
+        else:
+            # Default converter for other formats
+            doc_converter = DocumentConverter()
+            return doc_converter
 
     def _get_document_source(self) -> DocumentStream:
         """Create document stream with appropriate extension"""
