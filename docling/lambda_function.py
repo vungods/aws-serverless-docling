@@ -34,7 +34,8 @@ def upload_to_s3(content: str, bucket: str, key: str) -> str:
         Bucket=bucket,
         Key=key,
         Body=content.encode('utf-8'),
-        ContentType='text/markdown'
+        ContentType='text/markdown; charset=utf-8',
+        ContentEncoding='utf-8'
     )
     return f"s3://{bucket}/{key}"
 
@@ -66,7 +67,8 @@ def lambda_handler(event: dict, context):
             logger.error("Missing presigned URL in event")
             return {
                 'statusCode': 400,
-                'body': json.dumps({'error': 'Missing presigned URL parameter'})
+                'headers': {'Content-Type': 'application/json; charset=utf-8'},
+                'body': json.dumps({'error': 'Missing presigned URL parameter'}, ensure_ascii=False)
             }
 
         # Log the URL we're about to request (redacted for security)
@@ -154,14 +156,16 @@ def lambda_handler(event: dict, context):
         
         return {
             'statusCode': 200,
-            'body': json.dumps(response_data)
+            'headers': {'Content-Type': 'application/json; charset=utf-8'},
+            'body': json.dumps(response_data, ensure_ascii=False)
         }
         
     except requests.exceptions.RequestException as e:
         logger.error(f"Request error: {str(e)}")
         return {
             'statusCode': 502,
-            'body': json.dumps({'error': f'Error fetching document: {str(e)}'})
+            'headers': {'Content-Type': 'application/json; charset=utf-8'},
+            'body': json.dumps({'error': f'Error fetching document: {str(e)}'}, ensure_ascii=False)
         }
     except Exception as e:
         # Get full stack trace for debugging
@@ -169,5 +173,6 @@ def lambda_handler(event: dict, context):
         logger.error(f"Error processing document: {str(e)}\nStack trace: {stack_trace}")
         return {
             'statusCode': 500,
-            'body': json.dumps({'error': f'Processing error: {str(e)}'})
+            'headers': {'Content-Type': 'application/json; charset=utf-8'},
+            'body': json.dumps({'error': f'Processing error: {str(e)}'}, ensure_ascii=False)
         }
