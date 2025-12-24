@@ -87,6 +87,9 @@ def lambda_handler(event: dict, context):
             os.environ.get('ENABLE_TABLE_EXTRACTION', 'true').lower() == 'true')
         enable_ocr = event_data.get('enableOcr', 
             os.environ.get('ENABLE_OCR', 'false').lower() == 'true')
+        # Page range: [startPage, endPage] - 1-indexed, inclusive
+        # e.g., [1, 5] = pages 1-5, [3, 3] = only page 3
+        page_range = event_data.get('pageRange', None)
         # Legacy support
         is_image_present = event_data.get('isImagePresent', False)
         
@@ -102,7 +105,8 @@ def lambda_handler(event: dict, context):
             is_image_present=is_image_present,
             is_md_response=is_md_response,
             enable_table_extraction=enable_table_extraction,
-            enable_ocr=enable_ocr
+            enable_ocr=enable_ocr,
+            page_range=page_range
         )
 
         logger.info(f"Detected document type: {parser.doc_type}")
@@ -118,7 +122,8 @@ def lambda_handler(event: dict, context):
             'options': {
                 'tableExtraction': enable_table_extraction,
                 'ocr': enable_ocr,
-                'markdownFormat': is_md_response
+                'markdownFormat': is_md_response,
+                'pageRange': page_range
             }
         }
         
